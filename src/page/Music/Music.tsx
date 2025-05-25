@@ -15,10 +15,9 @@ import {
   DrawerContent,
   DrawerCloseButton,
   useDisclosure,
-  Collapse,
   Input,
 } from '@chakra-ui/react';
-import { Pause, Play, Trash, Search } from 'lucide-react';
+import { Pause, Play, Trash, Search, List } from 'lucide-react';
 import { motion } from 'framer-motion';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -30,21 +29,17 @@ const Music = () => {
   const [audio, setAudio] = useState(null);
   const [playedTracks, setPlayedTracks] = useState([]);
   const [accessToken, setAccessToken] = useState('');
-  const [expandedAlbum, setExpandedAlbum] = useState(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  // 테마 색상 (유튜브 뮤직 스타일)
   const bgColor = '#121212';
   const cardBgColor = useColorModeValue('gray.800', 'gray.700');
   const textColor = 'white';
   const accentColor = 'teal.400';
 
-  // Spotify API 인증 정보
   const CLIENT_ID = process.env.REACT_APP_SPOTIFY_CLIENT_ID_API_KEY;
   const CLIENT_SECRET = process.env.REACT_APP_SPOTIFY_SECRET_ID_API_KEY;
   const ARTISTS = ['10cm', 'IU'];
 
-  // Spotify 액세스 토큰 발급
   useEffect(() => {
     const getAccessToken = async () => {
       const auth = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
@@ -68,14 +63,12 @@ const Music = () => {
     getAccessToken();
   }, []);
 
-  // Spotify 데이터 가져오기
   useEffect(() => {
     const fetchArtistsData = async () => {
       if (!accessToken) return;
       const allArtistsData = [];
       for (const artistName of ARTISTS) {
         try {
-          // 아티스트 검색
           const artistResponse = await axios.get(
             `https://api.spotify.com/v1/search`,
             {
@@ -89,7 +82,6 @@ const Music = () => {
             continue;
           }
 
-          // 아티스트의 앨범 가져오기
           const albumsResponse = await axios.get(
             `https://api.spotify.com/v1/artists/${artist.id}/albums`,
             {
@@ -99,7 +91,6 @@ const Music = () => {
           );
           const albums = albumsResponse.data.items;
 
-          // 아티스트의 인기 트랙 가져오기
           const topTracksResponse = await axios.get(
             `https://api.spotify.com/v1/artists/${artist.id}/top-tracks`,
             {
@@ -109,7 +100,6 @@ const Music = () => {
           );
           const topTracks = topTracksResponse.data.tracks;
 
-          // 앨범별 트랙 가져오기
           const albumsWithTracks = await Promise.all(
             albums.map(async (album) => {
               const tracksResponse = await axios.get(
@@ -133,36 +123,64 @@ const Music = () => {
         }
       }
       setArtistsData(allArtistsData);
+      console.log('가져온 아티스트 데이터:', allArtistsData);
     };
     fetchArtistsData();
   }, [accessToken]);
 
-  // 로컬 스토리지에서 재생 목록 로드
   useEffect(() => {
     const savedTracks = localStorage.getItem('playedTracks');
     if (savedTracks) setPlayedTracks(JSON.parse(savedTracks));
   }, []);
 
-  // 오디오 재생/일시정지
   const handlePlay = (track) => {
-    if (!track.preview_url) {
-      console.warn('이 트랙은 미리듣기를 지원하지 않습니다:', track.name);
-      return;
-    }
-    if (audio) audio.pause();
-    const newAudio = new Audio(track.preview_url);
-    newAudio.play().catch((error) => console.error('재생 오류:', error.message));
-    newAudio.loop = false;
-    newAudio.volume = 0.5;
-    setAudio(newAudio);
-    setCurrentTrack(track);
-    setIsPlaying(true);
-
+    console.log('재생 시도:', track.name);
+    // 트랙을 재생 목록에 추가 (preview_url 유무와 관계없이)
     if (!playedTracks.find((t) => t.id === track.id)) {
       const updatedPlayedTracks = [...playedTracks, track];
       setPlayedTracks(updatedPlayedTracks);
       localStorage.setItem('playedTracks', JSON.stringify(updatedPlayedTracks));
+      console.log('재생 목록에 추가:', track.name);
     }
+
+    if (!track.preview_url) {
+      console.warn('이 트랙은 미리듣기를 지원하지 않습니다:', track.name);
+      const fallbackTrack = artistsData
+        .flatMap((artist) => artist.topTracks)
+        .find((t) => t.preview_url);
+      if (fallbackTrack) {
+        console.log('대체 트랙으로 전환:', fallbackTrack.name);
+        setCurrentTrack(fallbackTrack);
+        playTrack(fallbackTrack);
+        return;
+      } else {
+        setCurrentTrack({
+          name: '미리듣기 불가',
+          artists: [{ name: '알 수 없음' }],
+          album: { images: [{}, {}, { url: 'https://via.placeholder.com/50' }] },
+        });
+        return;
+      }
+    }
+    setCurrentTrack(track);
+    playTrack(track);
+  };
+
+  const playTrack = (track) => {
+    if (audio) audio.pause();
+    const newAudio = new Audio(track.preview_url);
+    newAudio.play()
+      .then(() => console.log('재생 시작:', track.name))
+      .catch((error) => {
+        console.error('재생 실패:', error.message);
+        if (error.name === 'NotAllowedError' || error.name === 'NotSupportedError') {
+          console.warn('브라우저 보안 정책 또는 지원되지 않는 형식입니다.');
+        }
+      });
+    newAudio.loop = false;
+    newAudio.volume = 0.5;
+    setAudio(newAudio);
+    setIsPlaying(true);
 
     newAudio.onended = () => {
       setIsPlaying(false);
@@ -183,13 +201,8 @@ const Music = () => {
     localStorage.setItem('playedTracks', JSON.stringify(updatedPlayedTracks));
   };
 
-  const toggleAlbum = (albumId) => {
-    setExpandedAlbum(expandedAlbum === albumId ? null : albumId);
-  };
-
   return (
     <Box bg={bgColor} minHeight="100vh" p={4} position="relative" overflow="hidden">
-      {/* 상단 네비게이션 바 */}
       <Flex
         position="sticky"
         top={0}
@@ -224,7 +237,6 @@ const Music = () => {
         </Flex>
       </Flex>
 
-      {/* 앨범 카드 (그리드 형태) */}
       <Stack spacing={6} maxW="1200px" mx="auto" zIndex={1}>
         {artistsData.map((artistData, index) => (
           <Box key={index}>
@@ -237,7 +249,6 @@ const Music = () => {
             >
               {artistData.artist}
             </Text>
-            {/* 앨범 그리드 */}
             <Flex wrap="wrap" gap={4} mb={6}>
               {artistData.albums.map((album) => (
                 <Box key={album.id} w={{ base: '100%', sm: '48%', md: '30%' }}>
@@ -251,7 +262,11 @@ const Music = () => {
                       overflow="hidden"
                       boxShadow="sm"
                       cursor="pointer"
-                      onClick={() => toggleAlbum(album.id)}
+                      onClick={() => {
+                        if (album.tracks && album.tracks.length > 0) {
+                          handlePlay(album.tracks[0]);
+                        }
+                      }}
                       _hover={{ boxShadow: 'md' }}
                     >
                       <Image
@@ -272,37 +287,10 @@ const Music = () => {
                       </Box>
                     </Box>
                   </motion.div>
-                  {/* 트랙 확장 */}
-                  <Collapse in={expandedAlbum === album.id} animateOpacity>
-                    <Stack spacing={2} mt={2} p={2} bg={cardBgColor} borderRadius="lg">
-                      {album.tracks.map((track) => (
-                        <HStack
-                          key={track.id}
-                          p={2}
-                          bg={cardBgColor}
-                          borderRadius="md"
-                          justifyContent="space-between"
-                        >
-                          <Text fontSize="sm" color={textColor} noOfLines={1}>
-                            {track.name}
-                          </Text>
-                          <IconButton
-                            icon={<Play />}
-                            aria-label="Play track"
-                            onClick={() => handlePlay(track)}
-                            variant="ghost"
-                            size="sm"
-                            colorScheme="teal"
-                          />
-                        </HStack>
-                      ))}
-                    </Stack>
-                  </Collapse>
                 </Box>
               ))}
             </Flex>
 
-            {/* 인기 트랙 섹션 */}
             {artistData.topTracks && artistData.topTracks.length > 0 && (
               <Box>
                 <Text fontSize="md" fontWeight="bold" color={textColor} mb={3}>
@@ -353,52 +341,64 @@ const Music = () => {
         ))}
       </Stack>
 
-      {/* 하단 재생 UI */}
-      {currentTrack && (
-        <Box
-          position="fixed"
-          bottom={0}
-          left={0}
-          right={0}
-          bg={cardBgColor}
-          p={3}
-          boxShadow="md"
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-          maxW="1200px"
-          mx="auto"
-          zIndex={2}
-        >
-          <HStack spacing={3} alignItems="center" flex="1">
-            <Image
-              src={currentTrack.album?.images[2]?.url || 'https://via.placeholder.com/50'}
-              alt={currentTrack.name}
-              boxSize="50px"
-              borderRadius="md"
-            />
-            <Box>
-              <Text fontSize="sm" color={textColor} fontWeight="bold" noOfLines={1}>
-                {currentTrack.name}
-              </Text>
-              <Text fontSize="xs" color="gray.500">{currentTrack.artists[0].name}</Text>
-            </Box>
-          </HStack>
+      <Box
+        position="fixed"
+        bottom={0}
+        left={0}
+        right={0}
+        bg={cardBgColor}
+        p={3}
+        boxShadow="md"
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        maxW="1200px"
+        mx="auto"
+        zIndex={2}
+      >
+        <HStack spacing={3} alignItems="center" flex="1">
+          <Image
+            src={
+              currentTrack?.album?.images?.[2]?.url ||
+              (currentTrack?.album?.images?.length > 0
+                ? currentTrack.album.images[0].url
+                : 'https://via.placeholder.com/50')
+            }
+            alt={currentTrack?.name || '트랙 없음'}
+            boxSize="50px"
+            borderRadius="md"
+            objectFit="cover"
+          />
+          <Box>
+            <Text fontSize="sm" color={textColor} fontWeight="bold" noOfLines={1}>
+              {currentTrack?.name || '재생 중인 트랙 없음'}
+            </Text>
+            <Text fontSize="xs" color="gray.500">
+              {currentTrack?.artists?.[0]?.name || '아티스트 없음'}
+            </Text>
+          </Box>
+        </HStack>
+        <HStack spacing={2}>
           <IconButton
             icon={isPlaying ? <Pause /> : <Play />}
             aria-label={isPlaying ? 'Pause' : 'Play'}
-            onClick={isPlaying ? handlePause : () => handlePlay(currentTrack)}
+            onClick={isPlaying ? handlePause : () => currentTrack && handlePlay(currentTrack)}
+            variant="ghost"
+            colorScheme="teal"
+            size="sm"
+            isDisabled={!currentTrack || currentTrack.name === '미리듣기 불가'}
+          />
+          <IconButton
+            icon={<List />}
+            aria-label="Open playlist"
+            onClick={onOpen}
             variant="ghost"
             colorScheme="teal"
             size="sm"
           />
-          <Button size="sm" onClick={onOpen} colorScheme="teal" variant="outline">
-            재생 목록
-          </Button>
-        </Box>
-      )}
+        </HStack>
+      </Box>
 
-      {/* 재생 목록 드로워 */}
       <Drawer placement="right" onClose={onClose} isOpen={isOpen}>
         <DrawerOverlay />
         <DrawerContent bg={cardBgColor}>
