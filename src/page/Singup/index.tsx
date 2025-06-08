@@ -103,9 +103,8 @@ const Signup = () => {
         mx="auto"
       >
         <Heading size="lg" color="#38b2ac">
-          Sign Up
+          회원가입
         </Heading>
-        <Text color="gray.400">Create your account to get started!</Text>
 
         <form onSubmit={handleSubmit(onSubmit)} style={{ width: '100%' }}>
           <VStack spacing={4}>
@@ -114,7 +113,7 @@ const Signup = () => {
               <FormLabel htmlFor="username">아이디</FormLabel>
               <Input
                 id="username"
-                placeholder="Enter your username"
+                placeholder="아이디를 입력해주세요."
                 bg="gray.700"
                 borderColor="gray.600"
                 _hover={{ borderColor: '#38b2ac' }}
@@ -141,7 +140,7 @@ const Signup = () => {
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder="이메일을 입력해주세요."
                 bg="gray.700"
                 borderColor="gray.600"
                 _hover={{ borderColor: '#38b2ac' }}
@@ -164,7 +163,7 @@ const Signup = () => {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="비밀번호를 입력해주세요."
                 bg="gray.700"
                 borderColor="gray.600"
                 _hover={{ borderColor: '#38b2ac' }}
@@ -192,7 +191,7 @@ const Signup = () => {
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder="Confirm your password"
+                placeholder="비밀번호를 입력해주세요."
                 bg="gray.700"
                 borderColor="gray.600"
                 _hover={{ borderColor: '#38b2ac' }}
