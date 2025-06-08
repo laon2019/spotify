@@ -1,19 +1,18 @@
 import React from 'react';
 import { Routes, Route } from "react-router-dom";
-import Music from "./page/Music/Music.tsx";
+import Music from "./page/Music/index.tsx";
 import { useTranslation } from "react-i18next";
-import Layout from './layout/Layout.tsx';
-import NotFound from './page/NotFound/NotFound.tsx';
+import Signup from './page/Singup/index.tsx';
+import Login from './page/Login/index.tsx';
 
 const App = () => {
   const { t } = useTranslation();
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Music />} />
-        <Route path="*" element={<NotFound content={t("notFound")} />} />
-      </Routes>
-    </Layout>
+    <Routes>
+      <Route path="/" element={<Music />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/login" element={<Login />} />
+    </Routes>
   );
 };
 
